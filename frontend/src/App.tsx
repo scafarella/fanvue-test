@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useState } from "react";
 
 import type { Payout } from "../../src/types";
@@ -28,6 +27,25 @@ function formatDate(iso: string): string {
   }).format(d);
 }
 
+function getPayoutIdFromHash(): string | null {
+  // Example: #/payouts/po_123
+  const match = window.location.hash.match(/^#\/payouts\/(.+)$/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+function goToPayout(payoutId: string) {
+  window.location.hash = `#/payouts/${encodeURIComponent(payoutId)}`;
+}
+
+function goToList() {
+  window.location.hash = "";
+}
+
 export const App: React.FC = () => {
   const [state, setState] = useState<ApiState<Payout[]>>({
     status: "idle",
@@ -50,13 +68,11 @@ export const App: React.FC = () => {
           throw new Error(`Request failed: ${res.status} ${res.statusText}`);
         }
 
-        const json = (await res.json()) as {payouts: Payout[]};
+        const json = (await res.json()) as { payouts: Payout[] };
         if (!Array.isArray(json.payouts)) {
-          throw new Error("Unexpected API response: expected an array");
+          throw new Error("Unexpected API response: expected { payouts: Payout[] }");
         }
 
-        // Trust the API shape for now (this is a 2-hour sprint). If you want stricter
-        // safety later, add a zod/io-ts runtime validator here.
         setState({ status: "success", data: json.payouts, error: null });
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
@@ -79,9 +95,7 @@ export const App: React.FC = () => {
 
       {state.status === "loading" && <p>Loading…</p>}
       {state.status === "error" && (
-        <p style={{ color: "crimson" }}>
-          Failed to load payouts: {state.error}
-        </p>
+        <p style={{ color: "crimson" }}>Failed to load payouts: {state.error}</p>
       )}
 
       {state.status === "success" && (
@@ -94,7 +108,7 @@ export const App: React.FC = () => {
                 style={{
                   width: "100%",
                   borderCollapse: "collapse",
-                  minWidth: 900,
+                  minWidth: 980,
                 }}
               >
                 <thead>
@@ -108,6 +122,7 @@ export const App: React.FC = () => {
                       "Status",
                       "Risk Score",
                       "Method",
+                      "Actions",
                     ].map((h) => (
                       <th
                         key={h}

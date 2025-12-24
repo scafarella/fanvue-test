@@ -53,3 +53,10 @@ export interface PayoutDecision {
   reason?: string;
   decidedAt: string;
 }
+
+export interface PayoutDetailsResponse {
+  payout: Payout;
+  invoices: Array<Pick<PayoutInvoice, "invoiceId" | "status">>;
+  latestPaymentAttempt: PaymentAttempt | null;
+  fraudSignals: FraudSignal[];
+}
