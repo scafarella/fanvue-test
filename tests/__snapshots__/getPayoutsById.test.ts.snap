@@ -1,0 +1,73 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`getPayoutByIdHandler > returns 404 error envelope and matches snapshot when payout is missing 1`] = `
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "details": {
+      "payoutId": "po_missing",
+    },
+    "message": "Payout not found: po_missing",
+  },
+}
+`;
+
+exports[`getPayoutByIdHandler > returns payout details (invoices, latest attempt, fraud notes) and matches snapshot 1`] = `
+{
+  "fraudSignals": [
+    {
+      "createdAt": "2025-12-24T09:20:00.000Z",
+      "entityId": "pay_2",
+      "entityType": "PAYMENT",
+      "id": "fs_payment",
+      "note": "Unusual payout velocity",
+      "severity": "LOW",
+      "type": "VELOCITY",
+    },
+    {
+      "createdAt": "2025-12-24T09:10:00.000Z",
+      "entityId": "cr_1",
+      "entityType": "CREATOR",
+      "id": "fs_creator",
+      "note": "High dispute rate",
+      "severity": "HIGH",
+      "type": "CHARGEBACK_RISK",
+    },
+    {
+      "createdAt": "2025-12-24T09:00:00.000Z",
+      "entityId": "po_1",
+      "entityType": "PAYOUT",
+      "id": "fs_payout",
+      "note": "Flagged by ops",
+      "severity": "MEDIUM",
+      "type": "MANUAL_REVIEW",
+    },
+  ],
+  "invoices": [
+    {
+      "invoiceId": "inv_1",
+      "status": "OPEN",
+    },
+    {
+      "invoiceId": "inv_2",
+      "status": "PAID",
+    },
+  ],
+  "latestPaymentAttempt": {
+    "createdAt": "2025-12-24T09:30:00.000Z",
+    "id": "pa_newest",
+    "paymentId": "pay_2",
+    "status": "SUCCEEDED",
+  },
+  "payout": {
+    "amountMinor": 12345,
+    "creatorId": "cr_1",
+    "currency": "GBP",
+    "id": "po_1",
+    "method": "BANK_TRANSFER",
+    "riskScore": 0.42,
+    "scheduledFor": "2025-12-24T00:00:00.000Z",
+    "status": "PENDING",
+  },
+}
+`;

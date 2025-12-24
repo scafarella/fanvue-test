@@ -1,0 +1,28 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`getPayoutsHandler > returns payouts and matches snapshot 1`] = `
+{
+  "payouts": [
+    {
+      "amountMinor": 12345,
+      "creatorId": "cr_1",
+      "currency": "GBP",
+      "id": "po_1",
+      "method": "BANK_TRANSFER",
+      "riskScore": 0.42,
+      "scheduledFor": "2025-12-24T00:00:00.000Z",
+      "status": "PENDING",
+    },
+    {
+      "amountMinor": 9900,
+      "creatorId": "cr_2",
+      "currency": "GBP",
+      "id": "po_2",
+      "method": "PAYPAL",
+      "riskScore": 0.9,
+      "scheduledFor": "2025-12-25T00:00:00.000Z",
+      "status": "HELD",
+    },
+  ],
+}
+`;
