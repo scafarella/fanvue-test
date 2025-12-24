@@ -1,9 +1,8 @@
 import type { Request, Response } from 'express';
 import express from 'express';
+import { createSeedData } from './seed';
 
-export const helloWorld = () => {
-  return 'Hello World';
-};
+const data = createSeedData()
 
 export const healthHandler = (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
@@ -13,6 +12,12 @@ export const createApp = () => {
   const app = express();
 
   app.get('/health', healthHandler);
+
+  app.get('/api/payouts', (_req: Request, res: Response) => {
+    res.status(200).json({ 
+      payouts: data.payouts
+    });
+  });
 
   return app;
 };
