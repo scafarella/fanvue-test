@@ -2,23 +2,12 @@ import type { Request, Response } from 'express';
 import express from 'express';
 import { createSeedData } from './seed';
 
-const data = createSeedData()
-const jsonError = (
-  res: Response,
-  status: number,
-  code: string,
-  message: string,
-  details?: Record<string, unknown>
-) => {
-  return res.status(status).json({
-    error: {
-      code,
-      message,
-      ...(details ? { details } : {}),
-    },
-  });
-};
+import { jsonError } from './api/jsonError';
+import { getPayoutsHandler } from './api/getPayouts';
+import { getPayoutByIdHandler } from './api/getPayoutById';
+import { postPayoutDecisionHandler } from './api/postPayoutDecision';
 
+const data = createSeedData();
 
 export const healthHandler = (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
@@ -27,124 +16,16 @@ export const healthHandler = (_req: Request, res: Response) => {
 export const createApp = () => {
   const app = express();
 
+  app.use(express.json());
+
   app.get('/health', healthHandler);
 
-  app.get('/api/payouts', (_req: Request, res: Response) => {
-    res.status(200).json({ 
-      payouts: data.payouts
-    });
-  });
-
-  app.get('/api/payouts/:payoutId', (req: Request, res: Response) => {
-    const payoutId = req.params.payoutId;
-
-    const payout = data.payouts.find((p) => p.id === payoutId);
-    if (!payout) {
-      return res.status(404).json({ error: `Payout not found: ${payoutId}` });
-    }
-
-    const payoutInvoices = (data as any).payoutInvoices ?? (data as any).invoices ?? [];
-    const payments = (data as any).payments ?? [];
-    const paymentAttempts = (data as any).paymentAttempts ?? [];
-    const fraudSignals = (data as any).fraudSignals ?? [];
-
-    const invoices = (payoutInvoices as any[])
-      .filter((pi) => pi.payoutId === payoutId)
-      .map((pi) => ({ invoiceId: pi.invoiceId, status: pi.status }));
-
-    const relatedPayments = (payments as any[]).filter((pay) => pay.payoutId === payoutId);
-    const paymentIds = relatedPayments.map((p) => p.id);
-
-    const attemptsForPayout = (paymentAttempts as any[])
-      .filter((a) => paymentIds.includes(a.paymentId))
-      .slice()
-      .sort((a, b) => {
-        const ta = new Date(a.createdAt).getTime();
-        const tb = new Date(b.createdAt).getTime();
-        return tb - ta;
-      });
-
-    const latestPaymentAttempt = attemptsForPayout.length > 0 ? attemptsForPayout[0] : null;
-
-    // Include signals related to this payout, its creator, or any associated payment.
-    const relatedFraudSignals = (fraudSignals as any[])
-      .filter((s) => {
-        if (s.entityType === 'PAYOUT' && s.entityId === payoutId) return true;
-        if (s.entityType === 'CREATOR' && s.entityId === payout.creatorId) return true;
-        if (s.entityType === 'PAYMENT' && paymentIds.includes(s.entityId)) return true;
-        return false;
-      })
-      .slice()
-      .sort((a, b) => {
-        const ta = new Date(a.createdAt).getTime();
-        const tb = new Date(b.createdAt).getTime();
-        return tb - ta;
-      });
-
-    return res.status(200).json({
-      payout,
-      invoices,
-      latestPaymentAttempt,
-      fraudSignals: relatedFraudSignals,
-    });
-  });
-
-    app.post('/api/payouts/:payoutId/decision', (req: Request, res: Response) => {
-    const payoutId = req.params.payoutId;
-
-    const payout = data.payouts.find((p) => p.id === payoutId);
-    if (!payout) {
-      return jsonError(res, 404, 'NOT_FOUND', `Payout not found: ${payoutId}`, { payoutId });
-    }
-
-    const body = (req.body ?? {}) as Partial<{
-      action: 'APPROVE' | 'HOLD' | 'REJECT';
-      reason?: string;
-    }>;
-
-    const action = body.action;
-    const reason = typeof body.reason === 'string' ? body.reason.trim() : undefined;
-
-    if (action !== 'APPROVE' && action !== 'HOLD' && action !== 'REJECT') {
-      return jsonError(
-        res,
-        400,
-        'VALIDATION_ERROR',
-        'Invalid action. Expected APPROVE | HOLD | REJECT.',
-        { received: body.action }
-      );
-    }
-
-    if (action === 'REJECT' && (!reason || reason.length === 0)) {
-      return jsonError(res, 400, 'VALIDATION_ERROR', 'Reject requires a free-text reason.', {
-        payoutId,
-      });
-    }
-
-    const payoutDecisions = ((data as any).payoutDecisions ??= []) as any[];
-
-    const decision = {
-      id: `pd_${Math.random().toString(36).slice(2, 10)}`,
-      payoutId,
-      action,
-      ...(reason ? { reason } : {}),
-      decidedAt: new Date().toISOString(),
-    };
-
-    // eslint-disable-next-line no-console
-    console.log('[payout-decision]', {
-      payoutId,
-      action,
-      reason,
-      decisionId: decision.id,
-      decidedAt: decision.decidedAt,
-    });
-
-    payoutDecisions.push(decision);
-
-    return res.status(200).json({ ok: true, decision });
-  });
-
+  app.get('/api/payouts', getPayoutsHandler({ data }));
+  app.get('/api/payouts/:payoutId', getPayoutByIdHandler({ data, jsonError }));
+  app.post(
+    '/api/payouts/:payoutId/decision',
+    postPayoutDecisionHandler({ data, jsonError })
+  );
 
   return app;
 };
