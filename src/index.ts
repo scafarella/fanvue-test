@@ -3,6 +3,22 @@ import express from 'express';
 import { createSeedData } from './seed';
 
 const data = createSeedData()
+const jsonError = (
+  res: Response,
+  status: number,
+  code: string,
+  message: string,
+  details?: Record<string, unknown>
+) => {
+  return res.status(status).json({
+    error: {
+      code,
+      message,
+      ...(details ? { details } : {}),
+    },
+  });
+};
+
 
 export const healthHandler = (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
@@ -72,6 +88,63 @@ export const createApp = () => {
       fraudSignals: relatedFraudSignals,
     });
   });
+
+    app.post('/api/payouts/:payoutId/decision', (req: Request, res: Response) => {
+    const payoutId = req.params.payoutId;
+
+    const payout = data.payouts.find((p) => p.id === payoutId);
+    if (!payout) {
+      return jsonError(res, 404, 'NOT_FOUND', `Payout not found: ${payoutId}`, { payoutId });
+    }
+
+    const body = (req.body ?? {}) as Partial<{
+      action: 'APPROVE' | 'HOLD' | 'REJECT';
+      reason?: string;
+    }>;
+
+    const action = body.action;
+    const reason = typeof body.reason === 'string' ? body.reason.trim() : undefined;
+
+    if (action !== 'APPROVE' && action !== 'HOLD' && action !== 'REJECT') {
+      return jsonError(
+        res,
+        400,
+        'VALIDATION_ERROR',
+        'Invalid action. Expected APPROVE | HOLD | REJECT.',
+        { received: body.action }
+      );
+    }
+
+    if (action === 'REJECT' && (!reason || reason.length === 0)) {
+      return jsonError(res, 400, 'VALIDATION_ERROR', 'Reject requires a free-text reason.', {
+        payoutId,
+      });
+    }
+
+    const payoutDecisions = ((data as any).payoutDecisions ??= []) as any[];
+
+    const decision = {
+      id: `pd_${Math.random().toString(36).slice(2, 10)}`,
+      payoutId,
+      action,
+      ...(reason ? { reason } : {}),
+      decidedAt: new Date().toISOString(),
+    };
+
+    // eslint-disable-next-line no-console
+    console.log('[payout-decision]', {
+      payoutId,
+      action,
+      reason,
+      decisionId: decision.id,
+      decidedAt: decision.decidedAt,
+    });
+
+    payoutDecisions.push(decision);
+
+    return res.status(200).json({ ok: true, decision });
+  });
+
 
   return app;
 };
